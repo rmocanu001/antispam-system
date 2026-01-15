@@ -1,0 +1,35 @@
+# Postfix main.cf for Dual NIC Relay
+
+# Network Bindings
+inet_interfaces = all
+inet_protocols = ipv4
+
+# Hostname
+myhostname = antispam.igsu.local
+mydomain = igsu.local
+
+# Trusted Networks (LAN)
+mynetworks = 127.0.0.0/8, 192.168.1.0/24
+
+# Relay Configuration
+relay_domains = igsu.ro, igsu.local
+relay_recipient_maps = hash:/etc/postfix/relay_recipients
+transport_maps = hash:/etc/postfix/transport
+
+# SpamAssassin Integration (Content Filter)
+content_filter = spamassassin:[127.0.0.1]:10025
+
+# Hardening
+smtpd_banner = $myhostname ESMTP IGSU Secure Relay
+disable_vrfy_command = yes
+smtpd_helo_required = yes
+smtpd_delay_reject = yes
+
+# Restrictions
+smtpd_recipient_restrictions =
+    permit_mynetworks,
+    permit_sasl_authenticated,
+    reject_unauth_destination,
+    reject_rbl_client zen.spamhaus.org
+
+message_size_limit = 20480000
