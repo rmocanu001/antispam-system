@@ -29,7 +29,7 @@ func main() {
 	}
 
 	var llmClient *llm.Client
-	if client, err := llm.New(cfg.LLMApiKey, cfg.LLMBaseURL, cfg.LLMModel, cfg.GeminiAPIKey); err != nil {
+	if client, err := llm.New(cfg.LLMApiKey, cfg.LLMBaseURL, cfg.LLMModel); err != nil {
 		log.Printf("LLM disabled: %v", err)
 	} else {
 		llmClient = client
