@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: dovecot
+  namespace: antispam-system
+  labels:
+    app: dovecot
+spec:
+  serviceName: dovecot-svc
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dovecot
+  template:
+    metadata:
+      labels:
+        app: dovecot
+    spec:
+      containers:
+        - name: dovecot
+          image: antispam-dovecot:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 143
+              name: imap
+            - containerPort: 993
+              name: imaps
+            - containerPort: 24
+              name: lmtp
+          volumeMounts:
+            - name: dovecot-config
+              mountPath: /etc/dovecot/dovecot.conf
+              subPath: dovecot.conf
+            - name: dovecot-mail
+              mountPath: /var/mail
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          readinessProbe:
+            tcpSocket:
+              port: 143
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: dovecot-config
+          configMap:
+            name: dovecot-config
+        - name: dovecot-mail
+          persistentVolumeClaim:
+            claimName: dovecot-mail
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dovecot-svc
+  namespace: antispam-system
+spec:
+  selector:
+    app: dovecot
+  ports:
+    - port: 143
+      targetPort: 143
+      name: imap
+    - port: 993
+      targetPort: 993
+      name: imaps
+    - port: 24
+      targetPort: 24
+      name: lmtp
+  type: ClusterIP

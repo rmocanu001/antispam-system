@@ -74,6 +74,10 @@ func LoadEmailsFromDir(dir string) ([]Email, error) {
 }
 
 func parseEnvelope(raw []byte) (*enmime.Envelope, error) {
+	return ParseEnvelope(raw)
+}
+
+func ParseEnvelope(raw []byte) (*enmime.Envelope, error) {
 	return enmime.ReadEnvelope(bytes.NewReader(raw))
 }
 

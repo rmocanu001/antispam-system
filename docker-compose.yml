@@ -1,0 +1,204 @@
+version: "3.8"
+
+services:
+  # --- LLM Inference ---
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - mailnet
+    # Uncomment below for NVIDIA GPU support:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  # Init container: pull the model on first startup
+  ollama-pull:
+    image: ollama/ollama:latest
+    container_name: ollama-pull
+    depends_on:
+      ollama:
+        condition: service_healthy
+    entrypoint: ["sh", "-c", "ollama pull qwen2.5:7b"]
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    restart: "no"
+    networks:
+      - mailnet
+
+  # --- Mail Scanning ---
+  spamassassin:
+    build:
+      context: ./deployment/spamassassin
+      dockerfile: Dockerfile
+    container_name: spamassassin
+    ports:
+      - "783:783"
+    healthcheck:
+      test: ["CMD", "spamc", "-K"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - mailnet
+
+  clamav:
+    image: clamav/clamav:latest
+    container_name: clamav
+    ports:
+      - "3310:3310"
+    volumes:
+      - clamav_data:/var/lib/clamav
+    healthcheck:
+      test: ["CMD", "clamdcheck"]
+      interval: 60s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    restart: unless-stopped
+    networks:
+      - mailnet
+
+  # --- Mail Relay ---
+  postfix:
+    build:
+      context: ./deployment/postfix
+      dockerfile: Dockerfile
+    container_name: postfix
+    ports:
+      - "25:25"
+      - "587:587"
+    volumes:
+      - postfix_spool:/var/spool/postfix
+      - dkim_keys:/etc/opendkim/keys
+    depends_on:
+      spamassassin:
+        condition: service_healthy
+      dovecot:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - mailnet
+
+  # --- Mail Storage ---
+  dovecot:
+    build:
+      context: ./deployment/dovecot
+      dockerfile: Dockerfile
+    container_name: dovecot
+    ports:
+      - "143:143"
+      - "993:993"
+      - "24:24"
+    volumes:
+      - mail_data:/var/mail
+    restart: unless-stopped
+    networks:
+      - mailnet
+
+  # --- Webmail ---
+  roundcube:
+    image: roundcube/roundcubemail:latest
+    container_name: roundcube
+    ports:
+      - "8080:80"
+    environment:
+      - ROUNDCUBEMAIL_DEFAULT_HOST=dovecot
+      - ROUNDCUBEMAIL_DEFAULT_PORT=143
+      - ROUNDCUBEMAIL_SMTP_SERVER=postfix
+      - ROUNDCUBEMAIL_SMTP_PORT=587
+      - ROUNDCUBEMAIL_UPLOAD_MAX_FILESIZE=20M
+    depends_on:
+      - dovecot
+      - postfix
+    restart: unless-stopped
+    networks:
+      - mailnet
+
+  # --- Anti-Spam Policy Service ---
+  antispam-policy:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: antispam-policy
+    command: ["policyservice"]
+    ports:
+      - "9998:9998"
+    environment:
+      - OPENAI_API_KEY=ollama
+      - OPENAI_BASE_URL=http://ollama:11434/v1
+      - OPENAI_MODEL=qwen2.5:7b
+      - SPAMASSASSIN_HOST=spamassassin
+      - SPAMASSASSIN_PORT=783
+      - CLAMAV_HOST=clamav
+      - CLAMAV_PORT=3310
+      - POLICY_LISTEN=0.0.0.0:9998
+    depends_on:
+      - ollama
+      - spamassassin
+      - clamav
+    restart: unless-stopped
+    networks:
+      - mailnet
+
+  # --- Anti-Spam Batch Processor (for benchmarking) ---
+  antispam:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: antispam
+    environment:
+      - OPENAI_API_KEY=ollama
+      - OPENAI_BASE_URL=http://ollama:11434/v1
+      - OPENAI_MODEL=qwen2.5:7b
+      - SPAMASSASSIN_HOST=spamassassin
+      - SPAMASSASSIN_PORT=783
+      - CLAMAV_HOST=clamav
+      - CLAMAV_PORT=3310
+      - SAMPLE_DIR=/data/samples
+      - CLEAN_DIR=/data/clean
+      - SPAM_DIR=/data/spam
+      - QUARANTINE_DIR=/data/quarantine
+    volumes:
+      - ./samples:/data/samples
+      - ./testdata:/data/testdata
+    depends_on:
+      - ollama
+      - spamassassin
+      - clamav
+    profiles:
+      - batch
+    networks:
+      - mailnet
+
+volumes:
+  ollama_data:
+    driver: local
+  clamav_data:
+    driver: local
+  mail_data:
+    driver: local
+  postfix_spool:
+    driver: local
+  dkim_keys:
+    driver: local
+
+networks:
+  mailnet:
+    driver: bridge

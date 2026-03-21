@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postfix
+  namespace: antispam-system
+  labels:
+    app: postfix
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: postfix
+  template:
+    metadata:
+      labels:
+        app: postfix
+    spec:
+      containers:
+        - name: postfix
+          image: antispam-postfix:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 25
+              name: smtp
+            - containerPort: 587
+              name: submission
+          volumeMounts:
+            - name: postfix-config
+              mountPath: /etc/postfix/main.cf
+              subPath: main.cf
+            - name: postfix-config
+              mountPath: /etc/postfix/master.cf
+              subPath: master.cf
+            - name: postfix-spool
+              mountPath: /var/spool/postfix
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "1"
+          readinessProbe:
+            tcpSocket:
+              port: 25
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: postfix-config
+          configMap:
+            name: postfix-config
+        - name: postfix-spool
+          persistentVolumeClaim:
+            claimName: postfix-spool
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postfix-svc
+  namespace: antispam-system
+spec:
+  selector:
+    app: postfix
+  ports:
+    - port: 25
+      targetPort: 25
+      name: smtp
+    - port: 587
+      targetPort: 587
+      name: submission
+  type: LoadBalancer
