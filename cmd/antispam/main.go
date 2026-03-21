@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"spamfilter/internal/adversarial"
+	"spamfilter/internal/clamav"
 	"spamfilter/internal/config"
 	"spamfilter/internal/email"
 	"spamfilter/internal/llm"
@@ -50,7 +51,7 @@ func summarize(em *email.Email, cfg config.Config, llmClient *llm.Client, ctx co
 	// 2. SPF
 	spfResult, _ := email.CheckSPF(em.Envelope, cfg.SourceIP, cfg.HELODomain)
 
-	// 3. Domain
+	// 3. Domain blocklist
 	domainCheck := email.CheckDomainBlocklist(em.Envelope, cfg.Blocklist)
 
 	// 4. SpamAssassin
@@ -58,26 +59,57 @@ func summarize(em *email.Email, cfg config.Config, llmClient *llm.Client, ctx co
 	saClient := spamassassin.New(cfg.SpamAssassinHost, cfg.SpamAssassinPort)
 	if saRes, err := saClient.Check(em); err == nil {
 		saResult = saRes
+	} else {
+		log.Printf("SpamAssassin unavailable: %v", err)
 	}
 
-	// 5. LLM
+	// 5. ClamAV
+	var clamResult *clamav.Result
+	clamClient := clamav.New(cfg.ClamAVHost, cfg.ClamAVPort)
+	if res, err := clamClient.Scan(em.Raw); err == nil {
+		clamResult = res
+	} else {
+		log.Printf("ClamAV unavailable: %v", err)
+	}
+
+	// 6. LLM (gray zone: only if SA score is in [GrayZoneLow, GrayZoneHigh])
 	var llmScore *llm.Score
 	if llmClient != nil {
-		ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
-		defer cancel()
-		if score, err := llmClient.ScoreEmail(ctx, *em); err == nil {
-			llmScore = &score
+		callLLM := true
+		if saResult != nil {
+			if saResult.Score < cfg.GrayZoneLow {
+				callLLM = false
+				log.Printf("LLM skipped: SA score %.1f < gray zone %.1f (clearly ham)", saResult.Score, cfg.GrayZoneLow)
+			} else if saResult.Score > cfg.GrayZoneHigh {
+				callLLM = false
+				log.Printf("LLM skipped: SA score %.1f > gray zone %.1f (clearly spam)", saResult.Score, cfg.GrayZoneHigh)
+			}
+		}
+		if callLLM {
+			timeout := time.Duration(cfg.LLMTimeoutSec) * time.Second
+			llmCtx, cancel := context.WithTimeout(ctx, timeout)
+			defer cancel()
+			if score, err := llmClient.ScoreEmail(llmCtx, *em); err == nil {
+				llmScore = &score
+			} else {
+				log.Printf("LLM error: %v", err)
+			}
 		}
 	}
 
-	// 6. Adversarial Check
+	// 7. Adversarial Check
 	advResult := adversarial.Check(string(em.Raw))
 
-	// Build Scorecard
-	scorecard := recommendation.Build(dkimResults, spfResult, domainCheck, llmScore, saResult, &advResult)
+	// Build Scorecard with weighted ensemble
+	weights := recommendation.Weights{
+		LLM:  cfg.WeightLLM,
+		SA:   cfg.WeightSA,
+		Auth: cfg.WeightAuth,
+	}
+	scorecard := recommendation.Build(dkimResults, spfResult, domainCheck, llmScore, saResult, &advResult, clamResult, weights)
 
 	fmt.Println("\n----- EMAIL SCORECARD -----")
-	fmt.Printf("FINAL DECISION: %s (Score: %.1f/10.0)\n", scorecard.Status, scorecard.DecisionScore)
+	fmt.Printf("FINAL DECISION: %s (Score: %.2f/1.00)\n", scorecard.Status, scorecard.DecisionScore)
 	fmt.Println("---------------------------")
 	fmt.Println("Detailed Breakdown:")
 	fmt.Printf(" [ ] Domain: %s\n", scorecard.Details.Domain)
@@ -89,9 +121,18 @@ func summarize(em *email.Email, cfg config.Config, llmClient *llm.Client, ctx co
 		fmt.Println(" [ ] SA:     N/A")
 	}
 	if scorecard.Details.LLMScore != nil {
-		fmt.Printf(" [ ] LLM:    Score %.1f\n", scorecard.Details.LLMScore.Score)
+		fmt.Printf(" [ ] LLM:    Score %.2f\n", scorecard.Details.LLMScore.Score)
 	} else {
 		fmt.Println(" [ ] LLM:    N/A")
+	}
+	if scorecard.Details.ClamAV != nil {
+		if scorecard.Details.ClamAV.Infected {
+			fmt.Printf(" [!] ClamAV: VIRUS - %s\n", scorecard.Details.ClamAV.Virus)
+		} else {
+			fmt.Println(" [ ] ClamAV: CLEAN")
+		}
+	} else {
+		fmt.Println(" [ ] ClamAV: N/A")
 	}
 	if scorecard.Details.Adversarial != nil && scorecard.Details.Adversarial.IsAdversarial {
 		fmt.Printf(" [!] SECURITY: %s\n", scorecard.Details.Adversarial.Reason)

@@ -25,7 +25,7 @@ type Score struct {
 
 func New(apiKey, baseURL, model string) (*Client, error) {
 	if apiKey == "" {
-		return nil, errors.New("OPENAI_API_KEY not set; LLM classification disabled")
+		apiKey = "ollama"
 	}
 	cfg := openai.DefaultConfig(apiKey)
 	if baseURL != "" {
@@ -46,6 +46,9 @@ func (c *Client) ScoreEmail(ctx context.Context, em email.Email) (Score, error) 
 			{Role: openai.ChatMessageRoleUser, Content: prompt},
 		},
 		Temperature: 0.2,
+		ResponseFormat: &openai.ChatCompletionResponseFormat{
+			Type: openai.ChatCompletionResponseFormatTypeJSONObject,
+		},
 	})
 	if err != nil {
 		return Score{}, err

@@ -75,6 +75,42 @@ func CheckSPF(env *enmime.Envelope, sourceIP, heloDomain string) (SPFResult, err
 	return result, nil
 }
 
+// ParseAuthResults extracts DKIM and SPF results from the Authentication-Results header (RFC 7601).
+// This is used when the MTA (Postfix + OpenDKIM + policyd-spf) has already performed the checks.
+func ParseAuthResults(env *enmime.Envelope) (dkimStatus, spfStatus string) {
+	header := env.GetHeader("Authentication-Results")
+	if header == "" {
+		return "none", "none"
+	}
+	lower := strings.ToLower(header)
+
+	// Parse DKIM result
+	dkimStatus = "none"
+	if idx := strings.Index(lower, "dkim="); idx >= 0 {
+		rest := lower[idx+5:]
+		end := strings.IndexAny(rest, " ;,\r\n")
+		if end > 0 {
+			dkimStatus = strings.TrimSpace(rest[:end])
+		} else {
+			dkimStatus = strings.TrimSpace(rest)
+		}
+	}
+
+	// Parse SPF result
+	spfStatus = "none"
+	if idx := strings.Index(lower, "spf="); idx >= 0 {
+		rest := lower[idx+4:]
+		end := strings.IndexAny(rest, " ;,\r\n")
+		if end > 0 {
+			spfStatus = strings.TrimSpace(rest[:end])
+		} else {
+			spfStatus = strings.TrimSpace(rest)
+		}
+	}
+
+	return dkimStatus, spfStatus
+}
+
 func CheckDomainBlocklist(env *enmime.Envelope, blocklist []string) DomainCheck {
 	res := DomainCheck{}
 	addr := SenderAddress(env)

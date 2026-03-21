@@ -10,13 +10,15 @@ import (
 	"spamfilter/internal/spamassassin"
 )
 
+var defaultWeights = Weights{LLM: 0.5, SA: 0.3, Auth: 0.2}
+
 func TestBuild(t *testing.T) {
 	// Case 1: All clean
 	dkim := []email.DKIMResult{{Status: "pass", Domain: "example.com"}}
 	spf := email.SPFResult{Status: "pass"}
 	domain := email.DomainCheck{Malicious: false, Domain: "example.com"}
 
-	scorecard := Build(dkim, spf, domain, nil, nil, nil)
+	scorecard := Build(dkim, spf, domain, nil, nil, nil, nil, defaultWeights)
 
 	if scorecard.Status != "CLEAN" {
 		t.Errorf("expected CLEAN, got %s", scorecard.Status)
@@ -29,7 +31,7 @@ func TestBuild_Spam(t *testing.T) {
 	spf := email.SPFResult{Status: "fail"}
 	domain := email.DomainCheck{Malicious: true, Domain: "bad.com"}
 
-	scorecard := Build(dkim, spf, domain, nil, nil, nil)
+	scorecard := Build(dkim, spf, domain, nil, nil, nil, nil, defaultWeights)
 
 	if scorecard.Status != "SPAM" {
 		t.Errorf("expected SPAM, got %s", scorecard.Status)
@@ -43,7 +45,7 @@ func TestBuild_Adversarial(t *testing.T) {
 	domain := email.DomainCheck{Malicious: false}
 	adv := &adversarial.Result{IsAdversarial: true, Reason: "Injection"}
 
-	scorecard := Build(dkim, spf, domain, nil, nil, adv)
+	scorecard := Build(dkim, spf, domain, nil, nil, adv, nil, defaultWeights)
 
 	if scorecard.Status != "SPAM" {
 		t.Errorf("expected SPAM for adversarial, got %s", scorecard.Status)
@@ -59,7 +61,7 @@ func TestBuild_LLM_SpamAssassin(t *testing.T) {
 	llmScore := &llm.Score{Spam: true, Score: 0.9}
 	saResult := &spamassassin.Result{IsSpam: true, Score: 15.0, Rules: []string{"GTUBE"}}
 
-	scorecard := Build(dkim, spf, domain, llmScore, saResult, nil)
+	scorecard := Build(dkim, spf, domain, llmScore, saResult, nil, nil, defaultWeights)
 
 	if scorecard.Status != "SPAM" {
 		t.Errorf("expected SPAM, got %s", scorecard.Status)

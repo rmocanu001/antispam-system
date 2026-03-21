@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: spamassassin
+  namespace: antispam-system
+  labels:
+    app: spamassassin
+spec:
+  selector:
+    matchLabels:
+      app: spamassassin
+  template:
+    metadata:
+      labels:
+        app: spamassassin
+    spec:
+      containers:
+        - name: spamassassin
+          image: antispam-spamassassin:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 783
+              name: spamd
+          volumeMounts:
+            - name: spamassassin-config
+              mountPath: /etc/spamassassin/local.cf
+              subPath: local.cf
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "1"
+          readinessProbe:
+            tcpSocket:
+              port: 783
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: spamassassin-config
+          configMap:
+            name: spamassassin-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: spamassassin-svc
+  namespace: antispam-system
+spec:
+  selector:
+    app: spamassassin
+  ports:
+    - port: 783
+      targetPort: 783
+      name: spamd
+  type: ClusterIP

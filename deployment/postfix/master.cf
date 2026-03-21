@@ -1,23 +1,21 @@
-# Postfix master.cf
+# Postfix master.cf (Docker)
 
 # Standard SMTP service
 smtp      inet  n       -       y       -       -       smtpd
-  -o content_filter=spamassassin
 
-# SpamAssassin Filter Service
+# SpamAssassin filter via spamc
 spamassassin unix -     n       n       -       -       pipe
-  user=debian-spamd argv=/usr/bin/spamc -e /usr/sbin/sendmail -oi -f ${sender} ${recipient}
+  flags=DROhu user=nobody argv=/usr/bin/spamc -d spamassassin -p 783 -e /usr/sbin/sendmail -oi -f ${sender} ${recipient}
 
-# Submission (587)
+# Submission (587) with SASL
 submission inet n       -       y       -       -       smtpd
   -o syslog_name=postfix/submission
-  -o smtpd_tls_security_level=encrypt
+  -o smtpd_tls_security_level=may
   -o smtpd_sasl_auth_enable=yes
+  -o smtpd_reject_unlisted_recipient=no
+  -o smtpd_recipient_restrictions=permit_mynetworks,permit_sasl_authenticated,reject
 
-# Internal Relay (listen on 10025 if using header checks or separate instance)
-# For this simple setup, piping to spamc is enough, but typically we re-inject.
-#
-# Dedicated port for re-injection after scanning (if using a daemon/proxy)
+# Re-injection port after SpamAssassin scanning
 127.0.0.1:10025 inet n  -       n       -       -       smtpd
     -o content_filter=
     -o local_recipient_maps=
@@ -37,3 +35,7 @@ submission inet n       -       y       -       -       smtpd
     -o smtpd_client_connection_count_limit=0
     -o smtpd_client_connection_rate_limit=0
     -o receive_override_options=no_header_body_checks,no_unknown_recipient_checks,no_milters
+
+# SPF Policy Service
+policyd-spf  unix  -       n       n       -       0       spawn
+    user=policyd-spf argv=/usr/bin/policyd-spf

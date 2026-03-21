@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: antispam-policy
+  namespace: antispam-system
+  labels:
+    app: antispam-policy
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: antispam-policy
+  template:
+    metadata:
+      labels:
+        app: antispam-policy
+    spec:
+      containers:
+        - name: policyservice
+          image: antispam:latest
+          imagePullPolicy: IfNotPresent
+          command: ["policyservice"]
+          ports:
+            - containerPort: 9998
+              name: policy
+          envFrom:
+            - configMapRef:
+                name: antispam-config
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          readinessProbe:
+            tcpSocket:
+              port: 9998
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: antispam-policy-svc
+  namespace: antispam-system
+spec:
+  selector:
+    app: antispam-policy
+  ports:
+    - port: 9998
+      targetPort: 9998
+      name: policy
+  type: ClusterIP

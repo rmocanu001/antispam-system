@@ -1,0 +1,125 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postfix-config
+  namespace: antispam-system
+data:
+  main.cf: |
+    inet_interfaces = all
+    inet_protocols = ipv4
+    myhostname = antispam.igsu.local
+    mydomain = igsu.local
+    myorigin = $mydomain
+    mynetworks = 127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12
+    relay_domains = igsu.ro, igsu.local
+    virtual_transport = lmtp:inet:dovecot-svc:24
+    virtual_mailbox_domains = igsu.local
+    content_filter = spamassassin
+    milter_default_action = accept
+    milter_protocol = 6
+    smtpd_milters = inet:localhost:8891
+    non_smtpd_milters = $smtpd_milters
+    smtpd_banner = $myhostname ESMTP IGSU Secure Relay
+    disable_vrfy_command = yes
+    smtpd_helo_required = yes
+    smtpd_delay_reject = yes
+    smtpd_recipient_restrictions =
+        permit_mynetworks,
+        permit_sasl_authenticated,
+        reject_unauth_destination,
+        check_policy_service inet:antispam-policy-svc:9998
+    message_size_limit = 20480000
+  master.cf: |
+    smtp      inet  n       -       y       -       -       smtpd
+    spamassassin unix -     n       n       -       -       pipe
+      flags=DROhu user=nobody argv=/usr/bin/spamc -d spamassassin-svc -p 783 -e /usr/sbin/sendmail -oi -f ${sender} ${recipient}
+    submission inet n       -       y       -       -       smtpd
+      -o syslog_name=postfix/submission
+      -o smtpd_tls_security_level=may
+      -o smtpd_sasl_auth_enable=yes
+      -o smtpd_reject_unlisted_recipient=no
+      -o smtpd_recipient_restrictions=permit_mynetworks,permit_sasl_authenticated,reject
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spamassassin-config
+  namespace: antispam-system
+data:
+  local.cf: |
+    required_score 5.0
+    use_bayes 1
+    bayes_auto_learn 1
+    report_safe 0
+    trusted_networks 10.0.0.0/8 172.16.0.0/12
+    shortcircuit BAYES_99 spam
+    score BAYES_99 10.0
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dovecot-config
+  namespace: antispam-system
+data:
+  dovecot.conf: |
+    protocols = imap lmtp
+    log_path = /dev/stderr
+    listen = *
+    mail_location = maildir:/var/mail/%u/Maildir
+    auth_mechanisms = plain login
+    passdb {
+      driver = passwd-file
+      args = scheme=SHA512-CRYPT /etc/dovecot/users
+    }
+    userdb {
+      driver = passwd-file
+      args = /etc/dovecot/users
+      default_fields = uid=vmail gid=vmail home=/var/mail/%u
+    }
+    ssl = no
+    service lmtp {
+      inet_listener lmtp {
+        address = 0.0.0.0
+        port = 24
+      }
+    }
+    service imap-login {
+      inet_listener imap {
+        address = 0.0.0.0
+        port = 143
+      }
+    }
+    namespace inbox {
+      inbox = yes
+      separator = /
+      mailbox Junk {
+        auto = subscribe
+        special_use = \Junk
+      }
+    }
+    protocol lmtp {
+      postmaster_address = postmaster@igsu.local
+    }
+    auth_penalty_init_secs = 0
+    disable_plaintext_auth = no
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: antispam-config
+  namespace: antispam-system
+data:
+  OPENAI_API_KEY: "ollama"
+  OPENAI_BASE_URL: "http://ollama-svc:11434/v1"
+  OPENAI_MODEL: "qwen2.5:7b"
+  LLM_TIMEOUT_SEC: "120"
+  SPAMASSASSIN_HOST: "spamassassin-svc"
+  SPAMASSASSIN_PORT: "783"
+  CLAMAV_HOST: "clamav-svc"
+  CLAMAV_PORT: "3310"
+  WEIGHT_LLM: "0.5"
+  WEIGHT_SA: "0.3"
+  WEIGHT_AUTH: "0.2"
+  GRAY_ZONE_LOW: "3.0"
+  GRAY_ZONE_HIGH: "8.0"
+  POLICY_LISTEN: "0.0.0.0:9998"

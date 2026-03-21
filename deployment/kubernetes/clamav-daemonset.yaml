@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: clamav
+  namespace: antispam-system
+  labels:
+    app: clamav
+spec:
+  selector:
+    matchLabels:
+      app: clamav
+  template:
+    metadata:
+      labels:
+        app: clamav
+    spec:
+      containers:
+        - name: clamav
+          image: clamav/clamav:latest
+          ports:
+            - containerPort: 3310
+              name: clamd
+          volumeMounts:
+            - name: clamav-defs
+              mountPath: /var/lib/clamav
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1"
+          readinessProbe:
+            tcpSocket:
+              port: 3310
+            initialDelaySeconds: 120
+            periodSeconds: 30
+      volumes:
+        - name: clamav-defs
+          persistentVolumeClaim:
+            claimName: clamav-defs
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: clamav-svc
+  namespace: antispam-system
+spec:
+  selector:
+    app: clamav
+  ports:
+    - port: 3310
+      targetPort: 3310
+      name: clamd
+  type: ClusterIP

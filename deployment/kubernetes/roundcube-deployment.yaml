@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: roundcube
+  namespace: antispam-system
+  labels:
+    app: roundcube
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: roundcube
+  template:
+    metadata:
+      labels:
+        app: roundcube
+    spec:
+      containers:
+        - name: roundcube
+          image: roundcube/roundcubemail:latest
+          ports:
+            - containerPort: 80
+              name: http
+          env:
+            - name: ROUNDCUBEMAIL_DEFAULT_HOST
+              value: "dovecot-svc"
+            - name: ROUNDCUBEMAIL_DEFAULT_PORT
+              value: "143"
+            - name: ROUNDCUBEMAIL_SMTP_SERVER
+              value: "postfix-svc"
+            - name: ROUNDCUBEMAIL_SMTP_PORT
+              value: "587"
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: roundcube-svc
+  namespace: antispam-system
+spec:
+  selector:
+    app: roundcube
+  ports:
+    - port: 8080
+      targetPort: 80
+      name: http
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: roundcube-ingress
+  namespace: antispam-system
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "20m"
+spec:
+  rules:
+    - host: webmail.igsu.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: roundcube-svc
+                port:
+                  number: 8080
