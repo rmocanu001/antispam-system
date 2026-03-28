@@ -13,7 +13,7 @@ myorigin = $mydomain
 mynetworks = 127.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 10.0.0.0/8
 
 # Relay Configuration
-relay_domains = igsu.ro, igsu.local
+relay_domains = igsu.ro
 relay_recipient_maps = hash:/etc/postfix/relay_recipients
 transport_maps = hash:/etc/postfix/transport
 
@@ -21,13 +21,10 @@ transport_maps = hash:/etc/postfix/transport
 virtual_transport = lmtp:inet:dovecot:24
 virtual_mailbox_domains = igsu.local
 
-# SpamAssassin Integration (Content Filter via spamc pipe)
-content_filter = spamassassin
-
 # OpenDKIM Milter
 milter_default_action = accept
 milter_protocol = 6
-smtpd_milters = inet:localhost:8891
+smtpd_milters = inet:127.0.0.1:8891
 non_smtpd_milters = $smtpd_milters
 
 # SPF Policy Service

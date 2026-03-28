@@ -1,0 +1,106 @@
+PROBLEME ÎNTÂMPINATE LA DEPLOYMENT-UL STACK-ULUI ANTI-SPAM
+===========================================================
+
+1. VERSIUNE GO INCOMPATIBILĂ ÎN DOCKERFILE
+-------------------------------------------
+Problemă: Dockerfile-ul folosea imaginea golang:1.23-alpine, dar go.mod specifică
+versiunea minimă go 1.25. Build-ul containerului antispam-policy eșua cu eroarea:
+  "go: go.mod requires go >= 1.25 (running go 1.23.12)"
+Soluție: Actualizarea imaginii de build la golang:1.25-alpine.
+
+2. ENTRYPOINT GREȘIT PENTRU SERVICIUL ANTISPAM-POLICY
+------------------------------------------------------
+Problemă: În docker-compose.yml, serviciul antispam-policy folosea
+  command: ["policyservice"]
+iar Dockerfile-ul avea ENTRYPOINT ["antispam"]. Docker concatenează entrypoint + command,
+deci rula "antispam policyservice" în loc de binarul corect "policyservice".
+Containerul pornea procesatorul batch (antispam) care căuta emailuri în /data/samples
+și se repornea în buclă.
+Soluție: Înlocuirea cu entrypoint: ["policyservice"] în docker-compose.yml.
+
+3. HEALTHCHECK OLLAMA FĂRĂ CURL
+--------------------------------
+Problemă: Healthcheck-ul pentru containerul Ollama folosea comanda curl, dar
+imaginea ollama/ollama:latest nu conține curl în cale.
+Eroare: "exec: curl: executable file not found in $PATH"
+Containerul rămânea permanent în starea "unhealthy", blocând pornirea ollama-pull.
+Soluție: Înlocuirea healthcheck-ului cu "ollama list", comandă disponibilă în imagine.
+
+4. SPAMD DAEMONIZAT ÎN DOCKER (FĂRĂ SYSLOG)
+--------------------------------------------
+Problemă: Comanda de start a SpamAssassin includea flag-ul -d (daemonize) și
+nu specifica unde să scrie log-urile. Docker nu are /dev/log disponibil în container,
+deci spamd nu putea inițializa syslog-ul și ieșea imediat.
+Eroare: "setlogsock(): type='unix': path not available"
+Soluție: Eliminarea flag-ului -d și adăugarea -s stderr pentru logging la stderr.
+
+5. CONFIGURARE DOVECOT INVALIDĂ
+---------------------------------
+Problemă: Fișierul dovecot.conf conținea opțiunea "auth_penalty_init_secs = 0"
+care a fost eliminată în versiunile mai noi de Dovecot (2.3+).
+Eroare: "doveconf: Fatal: Unknown setting: auth_penalty_init_secs"
+Soluție: Eliminarea liniei respective din configurație.
+
+6. SERVICII INTERNE POSTFIX LIPSĂ DIN MASTER.CF
+------------------------------------------------
+Problemă: Fișierul master.cf personalizat conținea doar serviciile de intrare
+(smtp, submission, policy) dar nu includea daemonii interni obligatorii ai Postfix:
+  - proxymap / proxywrite (pentru lookup tables)
+  - rewrite / trivial-rewrite (pentru rescrierea adreselor)
+  - pickup, cleanup, qmgr (pipeline-ul intern de procesare)
+  - bounce, defer, trace, flush, error, retry (gestionarea erorilor)
+  - lmtp, smtp (outbound), local, virtual (livrare)
+Fiecare lipsă provoca erori de tip "connect to subsystem private/X: No such file or directory"
+la fiecare email primit.
+Soluție: Adăugarea tuturor serviciilor standard din master.cf.dist în fișierul personalizat.
+
+7. LOCALHOST NEREZOLVABIL ÎN CHROOT-UL POSTFIX
+-----------------------------------------------
+Problemă: Postfix rulează daemonii smtpd în mod chroot (izolat în /var/spool/postfix/).
+Configurația OpenDKIM milter folosea "inet:localhost:8891", dar în mediul chroot
+nu există /etc/hosts sau /etc/resolv.conf, deci "localhost" nu putea fi rezolvat DNS.
+Eroare: "fatal: host/service localhost/8891 not found: Temporary failure in name resolution"
+Soluție: Înlocuirea "localhost" cu adresa IP directă "127.0.0.1" în main.cf.
+
+8. AUTENTIFICARE SMTP LIPSĂ ÎN ROUNDCUBE
+-----------------------------------------
+Problemă: Roundcube folosea implicit portul 587 (submission) cu autentificare SASL.
+Deoarece nu există niciun backend SASL configurat (saslauthd/Dovecot SASL),
+Postfix nu anunța capacități AUTH în răspunsul EHLO, iar Roundcube se deconecta
+imediat după EHLO fără a trimite mesajul (ehlo=1 quit=1 commands=2).
+Soluție: Mutarea Roundcube pe portul 25 (SMTP standard) și dezactivarea autentificării
+SMTP prin montarea unui fișier config PHP care setează smtp_user='' și smtp_pass=''.
+
+9. BUCLA DE FILTRARE SPAM (MAIL FORWARDING LOOP)
+-------------------------------------------------
+Problemă: main.cf conținea "content_filter = spamassassin" care trimitea fiecare
+email prin spamc. După scanare, spamc re-injecta mesajul via sendmail (portul 25),
+care declanșa din nou content_filter, creând o buclă infinită.
+Eroare: "status=bounced (mail forwarding loop for user1@igsu.local)"
+Soluție: Eliminarea liniei "content_filter = spamassassin" din main.cf. SpamAssassin
+este deja consultat de serviciul antispam-policy prin protocolul SPAMC direct.
+
+10. CONFLICT DOMENIU ÎN POSTFIX (relay_domains + virtual_mailbox_domains)
+--------------------------------------------------------------------------
+Problemă: igsu.local era listat atât în virtual_mailbox_domains cât și în relay_domains,
+ceea ce crea un conflict în rutarea mesajelor.
+Avertisment: "do not list domain igsu.local in BOTH virtual_mailbox_domains and relay_domains"
+Soluție: Eliminarea igsu.local din relay_domains (rămâne doar în virtual_mailbox_domains).
+
+11. DAEMONUL LMTP CHROOTED NU PUTEA REZOLVA "DOVECOT"
+------------------------------------------------------
+Problemă: Daemonul lmtp din master.cf era marcat cu chroot=y. În mediul chroot,
+resolv.conf nu era disponibil, deci hostname-ul "dovecot" nu putea fi rezolvat,
+blocând livrarea finală a emailurilor în Dovecot.
+Eroare: "Host or domain name not found. Name service error for name=dovecot"
+Soluție: Dezactivarea chroot pentru daemonul lmtp (chroot=n în master.cf).
+
+12. TEST SPAMASSASSIN BLOCAT (DEADLOCK ÎN TEST)
+------------------------------------------------
+Problemă: TestClient_Check din internal/spamassassin/client_test.go intra în deadlock:
+  - Funcția Check() deschidea o conexiune TCP și scria cererea, APOI apela performCommand()
+    care deschidea o A DOUA conexiune.
+  - Mock server-ul accepta o singură conexiune și se bloca pe conn.Read() pentru a
+    drena body-ul, dar bufio.Scanner consumase deja octeții în buffer-ul intern.
+Soluție: Eliminarea conexiunii redundante din Check() - aceasta apelează direct
+performCommand() care gestionează propria conexiune.

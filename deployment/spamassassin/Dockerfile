@@ -17,4 +17,4 @@ RUN sa-update || true
 
 EXPOSE 783
 
-CMD ["spamd", "--listen=0.0.0.0", "--allow-tell", "--nouser-config", "-d", "--pidfile=/var/run/spamd.pid", "--max-children=5"]
+CMD ["spamd", "--listen=0.0.0.0", "--allow-tell", "--nouser-config", "--max-children=5", "-s", "stderr"]

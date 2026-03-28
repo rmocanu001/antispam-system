@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/rmoca/Desktop/disertatie/.claude/worktrees/hopeful-rhodes/$APPDATA/**)",
+      "Read(//c/Users/rmoca/Desktop/disertatie/.claude/worktrees/hopeful-rhodes/$LOCALAPPDATA/**)",
+      "Read(//c/Users/rmoca/Desktop/disertatie/.claude/worktrees/hopeful-rhodes/**)",
+      "Read(//c/Users/rmoca/Desktop/disertatie/**)",
+      "Read(//c/Users/rmoca/.claude/**)",
+      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\(''''mcpServers'''',{}\\), indent=2\\)\\)\")",
+      "Bash(claude mcp:*)"
+    ]
+  },
+  "enabledMcpjsonServers": [
+    "MCP_DOCKER"
+  ],
+  "enableAllProjectMcpServers": true
+}
