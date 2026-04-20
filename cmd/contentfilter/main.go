@@ -30,10 +30,10 @@ import (
 // re-injects (clean) or quarantines the message.
 
 var (
-	cfg       config.Config
-	db        *sql.DB
-	llmClient *llm.Client
-	saClient  *spamassassin.Client
+	cfg        config.Config
+	db         *sql.DB
+	llmClient  *llm.Client
+	saClient   *spamassassin.Client
 	clamClient *clamav.Client
 )
 
@@ -122,12 +122,13 @@ func handleSMTP(conn net.Conn) {
 				inData = false
 				rawEmail := strings.Join(dataLines, "\r\n")
 				action := processEmail(sender, recipient, []byte(rawEmail))
-				if action == "REJECT" {
+				switch action {
+				case "REJECT":
 					writeLine("550 5.7.1 Message rejected by content filter")
-				} else if action == "QUARANTINE" {
+				case "QUARANTINE":
 					// Accept but don't re-inject (message stays in quarantine DB)
 					writeLine("250 2.0.0 Ok: quarantined")
-				} else {
+				default:
 					// Re-inject to Postfix on port 10025
 					err := reinject(sender, recipient, []byte(rawEmail))
 					if err != nil {
@@ -307,9 +308,10 @@ func processEmail(sender, recipient string, raw []byte) string {
 
 	// Determine action
 	action := "DUNNO" // pass through
-	if sc.Status == "SPAM" {
+	switch sc.Status {
+	case "SPAM":
 		action = "REJECT"
-	} else if sc.Status == "QUARANTINE" {
+	case "QUARANTINE":
 		action = "QUARANTINE"
 	}
 
@@ -370,7 +372,6 @@ func reinject(sender, recipient string, raw []byte) error {
 	r.ReadString('\n')
 
 	cmds := []string{
-		fmt.Sprintf("EHLO antispam-filter"),
 		fmt.Sprintf("MAIL FROM:<%s>", sender),
 		fmt.Sprintf("RCPT TO:<%s>", recipient),
 		"DATA",
