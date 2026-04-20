@@ -1,6 +1,3 @@
-# Dovecot passwd-file format: user:password:uid:gid:gecos:home:shell:extra_fields
-# Passwords generated with: doveadm pw -s SHA512-CRYPT
-# Default password for all test users: "test123"
-user1@igsu.local:{SHA512-CRYPT}$6$rounds=5000$salt1234$HqYmPMkFJGhZn1X8g5X1P1QzVz5K3kQ1h7Jv6v3x.KQ5rL7X8mVdY9wZ2B4nF6pR8tH0jL2mN4qS6uW8yA1cC3::::::
-admin@igsu.local:{SHA512-CRYPT}$6$rounds=5000$salt5678$HqYmPMkFJGhZn1X8g5X1P1QzVz5K3kQ1h7Jv6v3x.KQ5rL7X8mVdY9wZ2B4nF6pR8tH0jL2mN4qS6uW8yA1cC3::::::
-test@igsu.local:{SHA512-CRYPT}$6$rounds=5000$salt9012$HqYmPMkFJGhZn1X8g5X1P1QzVz5K3kQ1h7Jv6v3x.KQ5rL7X8mVdY9wZ2B4nF6pR8tH0jL2mN4qS6uW8yA1cC3::::::
+# This file is no longer used.
+# Users are now stored in MariaDB (mailserver.virtual_users).
+# Manage accounts via the Angular admin UI at https://admin.igsu.local:8443

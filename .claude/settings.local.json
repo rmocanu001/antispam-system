@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/rmoca/Desktop/disertatie/.claude/worktrees/hopeful-rhodes/$APPDATA/**)",
+      "Read(//c/Users/rmoca/Desktop/disertatie/.claude/worktrees/hopeful-rhodes/$LOCALAPPDATA/**)",
+      "Read(//c/Users/rmoca/Desktop/disertatie/.claude/worktrees/hopeful-rhodes/**)",
+      "Read(//c/Users/rmoca/Desktop/disertatie/**)",
+      "Read(//c/Users/rmoca/.claude/**)",
+      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\(''''mcpServers'''',{}\\), indent=2\\)\\)\")",
+      "Bash(claude mcp:*)",
+      "Read(//mnt/c/Users/rmoca/Desktop/**)",
+      "Read(//c/Users/rmoca/Desktop/go-web-for-remote//**)",
+      "Bash(go vet:*)",
+      "Bash(go build:*)",
+      "Bash(go test:*)",
+      "Bash(go get:*)",
+      "Bash(MSYS_NO_PATHCONV=1 docker exec mariadb mariadb -uroot -prootpass mailserver -e \"ALTER TABLE quarantine_messages ADD COLUMN raw_email LONGBLOB DEFAULT NULL AFTER body_preview;\" 2>&1)",
+      "Bash(docker-compose build:*)",
+      "Bash(docker-compose up:*)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "MCP_DOCKER"
+  ]
+}

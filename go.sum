@@ -10,6 +10,8 @@ github.com/emersion/go-msgauth v0.6.3 h1:Ig5iL0vpLevqFuogaQg00FoeK0aYpDO+RfVJ6KE
 github.com/emersion/go-msgauth v0.6.3/go.mod h1:1yr6+ZXHLtk++fP16K6d+thcCfQDy+6fIwEfz0pCTkk=
 github.com/emersion/go-textwrapper v0.0.0-20160606182133-d0e65e56babe/go.mod h1:aqO8z8wPrjkscevZJFVE1wXJrLpC5LtJG7fqLOsPb2U=
 github.com/emersion/go-textwrapper v0.0.0-20200911093747-65d896831594/go.mod h1:aqO8z8wPrjkscevZJFVE1wXJrLpC5LtJG7fqLOsPb2U=
+github.com/go-sql-driver/mysql v1.7.1 h1:lUIinVbN1DY0xBg0eMOzmmtGoHwWBbvnWubQUrtU8EI=
+github.com/go-sql-driver/mysql v1.7.1/go.mod h1:OXbVy3sEdcQ2Doequ6Z5BW6fXNQTmx+9S1MCJN5yJMI=
 github.com/go-test/deep v1.0.7 h1:/VSMRlnY/JSyqxQUzQLKVMAskpY/NZKFA5j2P+0pP2M=
 github.com/go-test/deep v1.0.7/go.mod h1:QV8Hv/iy04NyLBxAdO9njL0iVPN1S4d/A3NVv1V36o8=
 github.com/gogs/chardet v0.0.0-20191104214054-4b6791f73a28 h1:gBeyun7mySAKWg7Fb0GOcv0upX9bdaZScs8QcRo8mEY=

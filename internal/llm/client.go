@@ -39,10 +39,24 @@ func (c *Client) ScoreEmail(ctx context.Context, em email.Email) (Score, error) 
 		return Score{}, errors.New("LLM client is nil")
 	}
 	prompt := buildPrompt(em)
+	systemPrompt := `Ești un filtru anti-spam pentru serverul de email al IGSU (Inspectoratul General pentru Situații de Urgență), o instituție publică din România.
+
+REGULI DE CLASIFICARE:
+- Email-urile interne între colegi (chiar și informale, cu greșeli, sau cu subiecte scurte) sunt LEGITIME (spam=false, score<0.3).
+- Un subiect informal sau scurt NU este un indicator de spam.
+- Indicatori REALI de spam: link-uri suspecte/obscurate, cereri de date bancare/personale, urgentare artificială cu amenințări, oferte financiare nesolicitate, pharma spam, lottery/prize scams, phishing (impersonare bănci/servicii), atașamente executabile.
+- Scorul trebuie să reflecte PROBABILITATEA REALĂ de spam, nu calitatea redactării.
+- Dacă emailul nu conține niciun indicator concret de spam, score TREBUIE să fie sub 0.3.
+
+Returnează DOAR un obiect JSON valid cu exact aceste câmpuri:
+- spam (bool): true doar dacă emailul conține indicatori concreți de spam/phishing
+- score (float 0.0-1.0): probabilitatea de spam bazată pe indicatori concreți
+- reason (string): explicație scurtă în română`
+
 	resp, err := c.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
 		Model: c.model,
 		Messages: []openai.ChatCompletionMessage{
-			{Role: openai.ChatMessageRoleSystem, Content: "Ești un filtru anti-spam. Returnează doar JSON cu câmpurile spam (bool), score (0-1), reason (string)."},
+			{Role: openai.ChatMessageRoleSystem, Content: systemPrompt},
 			{Role: openai.ChatMessageRoleUser, Content: prompt},
 		},
 		Temperature: 0.2,

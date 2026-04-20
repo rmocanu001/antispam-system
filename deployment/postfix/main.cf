@@ -1,45 +1,56 @@
-# Postfix main.cf for Anti-Spam Relay (Docker)
+# ============================================================
+# Postfix main.cf  —  IGSU anti-spam relay  (Docker)
+# ============================================================
 
-# Network Bindings
 inet_interfaces = all
-inet_protocols = ipv4
+inet_protocols  = ipv4
 
-# Hostname
-myhostname = antispam.igsu.local
-mydomain = igsu.local
-myorigin = $mydomain
+myhostname = mail.igsu.local
+mydomain   = igsu.local
+myorigin   = $mydomain
 
-# Trusted Networks (Docker internal + LAN)
+# Trusted Docker-internal networks
 mynetworks = 127.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 10.0.0.0/8
 
-# Relay Configuration
-relay_domains = igsu.ro, igsu.local
-relay_recipient_maps = hash:/etc/postfix/relay_recipients
-transport_maps = hash:/etc/postfix/transport
-
-# Virtual transport to Dovecot via LMTP
-virtual_transport = lmtp:inet:dovecot:24
+# ---- Virtual delivery to Dovecot via LMTP ----
+virtual_transport      = lmtp:inet:dovecot:24
 virtual_mailbox_domains = igsu.local
 
-# SpamAssassin Integration (Content Filter via spamc pipe)
-content_filter = spamassassin
+# ---- TLS ----
+smtpd_tls_cert_file  = /certs/server.crt
+smtpd_tls_key_file   = /certs/server.key
+smtpd_tls_CAfile     = /certs/ca.crt
+smtpd_tls_security_level = may
+smtpd_tls_auth_only  = no
+smtp_tls_security_level  = may
+smtp_tls_CAfile          = /certs/ca.crt
 
-# OpenDKIM Milter
+# ---- SMTP AUTH (SASL via Dovecot) ----
+smtpd_sasl_type             = dovecot
+smtpd_sasl_path             = inet:dovecot:12345
+smtpd_sasl_auth_enable      = yes
+smtpd_sasl_security_options = noanonymous
+broken_sasl_auth_clients    = yes
+
+# ---- OpenDKIM milter ----
 milter_default_action = accept
-milter_protocol = 6
-smtpd_milters = inet:localhost:8891
-non_smtpd_milters = $smtpd_milters
+milter_protocol       = 6
+smtpd_milters         = inet:127.0.0.1:8891
+non_smtpd_milters     = $smtpd_milters
 
-# SPF Policy Service
+# ---- SPF policy daemon ----
 policyd-spf_time_limit = 3600
 
-# Hardening
-smtpd_banner = $myhostname ESMTP IGSU Secure Relay
-disable_vrfy_command = yes
-smtpd_helo_required = yes
-smtpd_delay_reject = yes
+# ---- Content filter (antispam scoring pipeline) ----
+content_filter = smtp:[content-filter]:10024
 
-# Restrictions
+# ---- Hardening ----
+smtpd_banner          = $myhostname ESMTP
+disable_vrfy_command  = yes
+smtpd_helo_required   = yes
+smtpd_delay_reject    = yes
+
+# ---- Recipient restrictions ----
 smtpd_recipient_restrictions =
     permit_mynetworks,
     permit_sasl_authenticated,

@@ -1,0 +1,20 @@
+driver   = mysql
+connect  = host=mariadb port=3306 dbname=mailserver user=dovecot password=dovecotpass
+
+# Passwords stored as bcrypt by the account-admin service
+default_pass_scheme = BLF-CRYPT
+
+password_query = \
+  SELECT password \
+  FROM   virtual_users \
+  WHERE  email = '%u' AND active = 1
+
+user_query = \
+  SELECT 5000        AS uid, \
+         5000        AS gid, \
+         CONCAT('/var/mail/', email) AS home \
+  FROM   virtual_users \
+  WHERE  email = '%u' AND active = 1
+
+iterate_query = \
+  SELECT email AS username FROM virtual_users WHERE active = 1

@@ -102,6 +102,15 @@ func BodyPreview(env *enmime.Envelope, max int) string {
 	return text
 }
 
+func ParseRaw(raw []byte) (*Email, error) {
+	env, err := ParseEnvelope(raw)
+	if err != nil {
+		return nil, fmt.Errorf("parse raw email: %w", err)
+	}
+	msgID := env.GetHeader("Message-ID")
+	return &Email{ID: msgID, Raw: raw, Envelope: env}, nil
+}
+
 func ToReader(e Email) io.Reader {
 	return bytes.NewReader(e.Raw)
 }

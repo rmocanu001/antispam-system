@@ -28,7 +28,7 @@ func TestClient_Check(t *testing.T) {
 		}
 		defer conn.Close()
 
-		// Read request
+		// Read request headers and body via scanner
 		scanner := bufio.NewScanner(conn)
 		for scanner.Scan() {
 			line := scanner.Text()
@@ -36,8 +36,8 @@ func TestClient_Check(t *testing.T) {
 				break // End of headers
 			}
 		}
-		// Read body (partial drain)
-		conn.Read(make([]byte, 1024))
+		// Drain body line (scanner already buffered it)
+		scanner.Scan()
 
 		// Send response
 		// Emulate SYMBOLS response
