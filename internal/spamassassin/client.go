@@ -38,19 +38,31 @@ func (c *Client) Check(em *email.Email) (*Result, error) {
 }
 
 func (c *Client) performCommand(cmd string, data []byte) (*Result, error) {
-	conn, err := net.DialTimeout("tcp", c.Host+":"+c.Port, 5*time.Second)
+	conn, err := net.DialTimeout("tcp", c.Host+":"+c.Port, 10*time.Second)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to spamd: %w", err)
 	}
 	defer conn.Close()
 
+	conn.SetDeadline(time.Now().Add(60 * time.Second))
+
 	reqHeader := fmt.Sprintf("%s SPAMC/1.2\r\nContent-Length: %d\r\n\r\n", cmd, len(data))
-	conn.Write([]byte(reqHeader))
-	conn.Write(data)
-	// Signal end of write if needed, but Content-Length handles it.
+	if _, err := conn.Write([]byte(reqHeader)); err != nil {
+		return nil, fmt.Errorf("spamd write header: %w", err)
+	}
+	if _, err := conn.Write(data); err != nil {
+		return nil, fmt.Errorf("spamd write body: %w", err)
+	}
+
+	// Signal end-of-write so spamd knows all data has been sent.
+	// spamd reads Content-Length bytes but some versions wait for EOF.
+	if tc, ok := conn.(*net.TCPConn); ok {
+		tc.CloseWrite()
+	}
 
 	// Read response
 	scanner := bufio.NewScanner(conn)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	res := &Result{}
 
 	// First line: SPAMD/1.x 0 EX_OK

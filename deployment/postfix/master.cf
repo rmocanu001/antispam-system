@@ -1,50 +1,53 @@
-# Postfix master.cf (Docker)
-# ==========================================================================
-# service type  private unpriv  chroot  wakeup  maxproc command + args
-# ==========================================================================
+# ============================================================
+# Postfix master.cf  —  IGSU anti-spam relay  (Docker)
+# ============================================================
+# service  type  private unpriv chroot wakeup maxproc command
 
-# --- Standard internal services (required) ---
-pickup    unix  n       -       y       60      1       pickup
-cleanup   unix  n       -       y       -       0       cleanup
-qmgr      unix  n       -       n       300     1       qmgr
-tlsmgr    unix  -       -       y       1000?   1       tlsmgr
-rewrite   unix  -       -       y       -       -       trivial-rewrite
-bounce    unix  -       -       y       -       0       bounce
-defer     unix  -       -       y       -       0       bounce
-trace     unix  -       -       y       -       0       bounce
-verify    unix  -       -       y       -       1       verify
-flush     unix  n       -       y       1000?   0       flush
-showq     unix  n       -       y       -       -       showq
-error     unix  -       -       y       -       -       error
-retry     unix  -       -       y       -       -       error
-discard   unix  -       -       y       -       -       discard
-local     unix  -       n       n       -       -       local
-virtual   unix  -       n       n       -       -       virtual
-lmtp      unix  -       -       n       -       -       lmtp
-anvil     unix  -       -       y       -       1       anvil
-scache    unix  -       -       y       -       1       scache
-proxymap  unix  -       -       n       -       -       proxymap
-proxywrite unix -       -       n       -       1       proxymap
-postlog   unix-dgram n  -       n       -       1       postlogd
+# ---- Standard internal services ----
+pickup    unix  n  -  y   60  1  pickup
+cleanup   unix  n  -  y   -   0  cleanup
+qmgr      unix  n  -  n   300 1  qmgr
+tlsmgr    unix  -  -  y   1000? 1  tlsmgr
+rewrite   unix  -  -  y   -   -  trivial-rewrite
+bounce    unix  -  -  y   -   0  bounce
+defer     unix  -  -  y   -   0  bounce
+trace     unix  -  -  y   -   0  bounce
+verify    unix  -  -  y   -   1  verify
+flush     unix  n  -  y   1000? 0  flush
+showq     unix  n  -  y   -   -  showq
+error     unix  -  -  y   -   -  error
+retry     unix  -  -  y   -   -  error
+discard   unix  -  -  y   -   -  discard
+local     unix  -  n  n   -   -  local
+virtual   unix  -  n  n   -   -  virtual
+lmtp      unix  -  -  n   -   -  lmtp
+anvil     unix  -  -  y   -   1  anvil
+scache    unix  -  -  y   -   1  scache
+proxymap  unix  -  -  n   -   -  proxymap
+proxywrite unix -  -  n   -   1  proxymap
+postlog   unix-dgram n - n - 1   postlogd
 
-# --- Outbound SMTP ---
-smtp      unix  -       -       y       -       -       smtp
-relay     unix  -       -       y       -       -       smtp
+# ---- Outbound SMTP ----
+smtp  unix  -  -  y  -  -  smtp
+relay unix  -  -  y  -  -  smtp
   -o syslog_name=postfix/$service_name
 
-# --- Inbound SMTP (port 25) ---
-smtp      inet  n       -       y       -       -       smtpd
+# ---- Inbound SMTP (port 25) ----
+smtp  inet  n  -  n  -  -  smtpd
 
-# --- Submission (port 587) - mynetworks only, no SASL ---
-submission inet n       -       y       -       -       smtpd
+# ---- Submission (port 587) — SASL auth required ----
+submission inet n  -  n  -  -  smtpd
   -o syslog_name=postfix/submission
   -o smtpd_tls_security_level=may
-  -o smtpd_sasl_auth_enable=no
-  -o smtpd_reject_unlisted_recipient=no
-  -o smtpd_recipient_restrictions=permit_mynetworks,reject
+  -o smtpd_sasl_auth_enable=yes
+  -o smtpd_sasl_type=dovecot
+  -o smtpd_sasl_path=inet:dovecot:12345
+  -o smtpd_sasl_security_options=noanonymous
+  -o smtpd_recipient_restrictions=permit_sasl_authenticated,permit_mynetworks,reject
+  -o milter_macro_daemon_name=ORIGINATING
 
-# --- Re-injection port after SpamAssassin scanning ---
-127.0.0.1:10025 inet n  -       n       -       -       smtpd
+# ---- Re-injection port after SpamAssassin scan ----
+0.0.0.0:10025 inet n  -  n  -  -  smtpd
   -o content_filter=
   -o local_recipient_maps=
   -o relay_recipient_maps=
@@ -55,7 +58,7 @@ submission inet n       -       y       -       -       smtpd
   -o smtpd_sender_restrictions=
   -o smtpd_recipient_restrictions=permit_mynetworks,reject
   -o mynetworks_style=host
-  -o mynetworks=127.0.0.0/8
+  -o mynetworks=127.0.0.0/8,172.16.0.0/12,10.0.0.0/8,192.168.0.0/16
   -o strict_rfc821_envelopes=yes
   -o smtpd_error_sleep_time=0
   -o smtpd_soft_error_limit=1001
@@ -64,10 +67,10 @@ submission inet n       -       y       -       -       smtpd
   -o smtpd_client_connection_rate_limit=0
   -o receive_override_options=no_header_body_checks,no_unknown_recipient_checks,no_milters
 
-# --- SpamAssassin content filter ---
-spamassassin unix -     n       n       -       -       pipe
+# ---- SpamAssassin content filter ----
+spamassassin unix -  n  n  -  -  pipe
   flags=DROhu user=nobody argv=/usr/bin/spamc -d spamassassin -p 783 -e /usr/sbin/sendmail -oi -f ${sender} ${recipient}
 
-# --- SPF Policy Service ---
-policyd-spf  unix  -       n       n       -       0       spawn
+# ---- SPF policy daemon ----
+policyd-spf  unix  -  n  n  -  0  spawn
   user=policyd-spf argv=/usr/bin/policyd-spf

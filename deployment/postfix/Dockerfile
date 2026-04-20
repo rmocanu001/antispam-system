@@ -4,6 +4,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y \
     postfix \
+    postfix-pcre \
+    libsasl2-modules \
+    sasl2-bin \
     opendkim \
     opendkim-tools \
     postfix-policyd-spf-python \
@@ -23,7 +26,7 @@ COPY opendkim.conf /etc/opendkim.conf
 
 # Copy entrypoint script
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+RUN sed -i 's/\r//' /entrypoint.sh && chmod +x /entrypoint.sh
 
 EXPOSE 25 587
 

@@ -1,0 +1,152 @@
+/* ---- login ---- */
+.login-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+}
+.login-card {
+  width: 100%;
+  max-width: 400px;
+}
+.login-card mat-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 16px;
+}
+
+/* ---- toolbar ---- */
+.toolbar { position: sticky; top: 0; z-index: 100; }
+.toolbar-title { margin-left: 12px; font-size: 1.1rem; font-weight: 500; }
+.spacer { flex: 1; }
+
+/* ---- tabs ---- */
+.main-tabs { margin-top: 0; }
+.tab-icon { margin-right: 6px; }
+
+/* ---- page ---- */
+.page-content {
+  max-width: 1200px;
+  margin: 24px auto;
+  padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ---- stats row ---- */
+.stats-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.stat-card {
+  flex: 1;
+  min-width: 140px;
+  text-align: center;
+}
+.stat-value {
+  font-size: 2.2rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.stat-label {
+  font-size: 0.85rem;
+  color: #666;
+  margin-top: 4px;
+}
+.stat-clean .stat-value { color: #4caf50; }
+.stat-spam .stat-value { color: #f44336; }
+.stat-quarantine .stat-value { color: #ff9800; }
+.stat-pending .stat-value { color: #9c27b0; }
+
+/* ---- cards ---- */
+.section-card mat-card-content { padding: 16px 16px 8px; }
+
+/* ---- forms ---- */
+.row-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-start;
+}
+.row-form mat-form-field { flex: 1; min-width: 220px; }
+.row-form button { margin-top: 4px; }
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.filter-row mat-form-field { width: 200px; }
+
+/* ---- table ---- */
+.full-w { width: 100%; }
+.empty-cell { text-align: center; padding: 24px; color: #888; }
+.truncate { max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---- verdicts ---- */
+.verdict-spam { color: #f44336; }
+.verdict-quarantine { color: #ff9800; }
+.verdict-clean { color: #4caf50; }
+
+/* ---- quarantine detail ---- */
+.inline-chips { display: inline-flex; margin-right: 8px; }
+.q-sender { margin-left: 8px; font-weight: 500; }
+.q-subject { flex: 1; }
+.q-date { white-space: nowrap; margin-left: 12px; color: #666; }
+
+.q-detail { padding: 8px 0; }
+
+.q-scores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  padding: 12px;
+  background: #fafafa;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+.score-item { display: flex; flex-direction: column; align-items: center; }
+.score-label { font-size: 0.75rem; color: #666; text-transform: uppercase; }
+.score-val { font-size: 1.1rem; font-weight: 600; }
+.score-item.virus .score-val { color: #f44336; }
+
+.q-reasons { margin-bottom: 12px; }
+.q-reasons ul { margin: 4px 0; padding-left: 20px; }
+.q-reasons li { font-size: 0.9rem; }
+
+.q-preview, .q-headers {
+  margin-bottom: 12px;
+}
+.q-preview pre, .q-headers pre {
+  background: #f5f5f5;
+  padding: 12px;
+  border-radius: 4px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-size: 0.85rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.q-actions {
+  display: flex;
+  gap: 12px;
+  padding-top: 8px;
+}
+
+.q-reviewed {
+  padding: 8px 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+/* ---- edit card ---- */
+.edit-card { border: 2px solid #9c27b0 !important; }
+
+/* ---- snackbar error ---- */
+::ng-deep .snack-err { background: #d32f2f !important; color: #fff !important; }

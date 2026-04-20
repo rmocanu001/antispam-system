@@ -17,4 +17,4 @@ RUN sa-update || true
 
 EXPOSE 783
 
-CMD ["spamd", "--listen=0.0.0.0", "--allow-tell", "--nouser-config", "--max-children=5", "-s", "stderr"]
+CMD ["spamd", "--listen=0.0.0.0", "--allowed-ips=127.0.0.1,172.16.0.0/12,10.0.0.0/8,192.168.0.0/16", "--allow-tell", "--nouser-config", "--max-children=5", "-s", "stderr"]

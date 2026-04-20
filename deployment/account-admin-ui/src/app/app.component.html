@@ -1,0 +1,439 @@
+<!-- ===================== LOGIN ===================== -->
+@if (!loggedIn()) {
+  <div class="login-wrap">
+    <mat-card class="login-card" appearance="outlined">
+      <mat-card-header>
+        <mat-icon mat-card-avatar>lock</mat-icon>
+        <mat-card-title>IGSU — Admin Mail</mat-card-title>
+        <mat-card-subtitle>Autentificare administrator</mat-card-subtitle>
+      </mat-card-header>
+
+      <mat-card-content>
+        <mat-form-field appearance="outline" class="full-w">
+          <mat-label>Utilizator</mat-label>
+          <input matInput [ngModel]="loginUser()" (ngModelChange)="loginUser.set($event)"
+                 (keyup.enter)="login()" autocomplete="username" />
+          <mat-icon matSuffix>person</mat-icon>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-w">
+          <mat-label>Parola</mat-label>
+          <input matInput type="password" [ngModel]="loginPass()" (ngModelChange)="loginPass.set($event)"
+                 (keyup.enter)="login()" autocomplete="current-password" />
+          <mat-icon matSuffix>key</mat-icon>
+        </mat-form-field>
+      </mat-card-content>
+
+      <mat-card-actions align="end">
+        <button mat-flat-button color="primary" (click)="login()">
+          <mat-icon>login</mat-icon> Autentificare
+        </button>
+      </mat-card-actions>
+    </mat-card>
+  </div>
+}
+
+<!-- ===================== DASHBOARD ===================== -->
+@if (loggedIn()) {
+  <!-- Top toolbar -->
+  <mat-toolbar color="primary" class="toolbar">
+    <mat-icon>mail</mat-icon>
+    <span class="toolbar-title">IGSU Mail — Administrare</span>
+    <span class="spacer"></span>
+    <button mat-icon-button matTooltip="Reincarca" (click)="refreshAll()">
+      <mat-icon>refresh</mat-icon>
+    </button>
+    <button mat-button (click)="logout()">
+      <mat-icon>logout</mat-icon> Deconectare
+    </button>
+  </mat-toolbar>
+
+  @if (loading() || quarantineLoading()) {
+    <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+  }
+
+  <!-- Tab navigation -->
+  <mat-tab-group [(selectedIndex)]="activeTab" class="main-tabs">
+
+    <!-- ============ TAB 1: STATS ============ -->
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <mat-icon class="tab-icon">dashboard</mat-icon>
+        Dashboard
+      </ng-template>
+
+      <div class="page-content">
+        <!-- Stats cards -->
+        <div class="stats-row">
+          <mat-card appearance="outlined" class="stat-card">
+            <mat-card-content>
+              <div class="stat-value">{{ stats().total }}</div>
+              <div class="stat-label">Total analizate</div>
+            </mat-card-content>
+          </mat-card>
+          <mat-card appearance="outlined" class="stat-card stat-clean">
+            <mat-card-content>
+              <div class="stat-value">{{ stats().clean }}</div>
+              <div class="stat-label">Curate</div>
+            </mat-card-content>
+          </mat-card>
+          <mat-card appearance="outlined" class="stat-card stat-spam">
+            <mat-card-content>
+              <div class="stat-value">{{ stats().spam }}</div>
+              <div class="stat-label">Spam</div>
+            </mat-card-content>
+          </mat-card>
+          <mat-card appearance="outlined" class="stat-card stat-quarantine">
+            <mat-card-content>
+              <div class="stat-value">{{ stats().quarantine }}</div>
+              <div class="stat-label">Carantina</div>
+            </mat-card-content>
+          </mat-card>
+          <mat-card appearance="outlined" class="stat-card stat-pending">
+            <mat-card-content>
+              <div class="stat-value">{{ stats().pending_review }}</div>
+              <div class="stat-label">De revizuit</div>
+            </mat-card-content>
+          </mat-card>
+        </div>
+
+        <!-- Recent scoring log -->
+        <mat-card appearance="outlined" class="section-card">
+          <mat-card-header>
+            <mat-icon mat-card-avatar>history</mat-icon>
+            <mat-card-title>Ultimele email-uri analizate</mat-card-title>
+          </mat-card-header>
+
+          <mat-card-content>
+            <table mat-table [dataSource]="stats().recent" class="full-w">
+              <ng-container matColumnDef="score">
+                <th mat-header-cell *matHeaderCellDef>Scor</th>
+                <td mat-cell *matCellDef="let e">
+                  <mat-chip-set>
+                    <mat-chip [color]="scoreColor(e.score)" highlighted>
+                      {{ e.score.toFixed(2) }}
+                    </mat-chip>
+                  </mat-chip-set>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="verdict">
+                <th mat-header-cell *matHeaderCellDef>Verdict</th>
+                <td mat-cell *matCellDef="let e">
+                  <mat-icon [class]="'verdict-' + e.verdict.toLowerCase()">{{ verdictIcon(e.verdict) }}</mat-icon>
+                  {{ e.verdict }}
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="sender">
+                <th mat-header-cell *matHeaderCellDef>Expeditor</th>
+                <td mat-cell *matCellDef="let e">{{ e.sender }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="subject">
+                <th mat-header-cell *matHeaderCellDef>Subiect</th>
+                <td mat-cell *matCellDef="let e" class="truncate">{{ e.subject }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="scored_at">
+                <th mat-header-cell *matHeaderCellDef>Data</th>
+                <td mat-cell *matCellDef="let e">{{ e.scored_at | date:'dd.MM HH:mm' }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="action_taken">
+                <th mat-header-cell *matHeaderCellDef>Actiune</th>
+                <td mat-cell *matCellDef="let e">
+                  <mat-chip-set>
+                    <mat-chip>{{ e.action_taken }}</mat-chip>
+                  </mat-chip-set>
+                </td>
+              </ng-container>
+
+              <tr mat-header-row *matHeaderRowDef="logColumns"></tr>
+              <tr mat-row *matRowDef="let row; columns: logColumns;"></tr>
+
+              <tr class="mat-row" *matNoDataRow>
+                <td class="mat-cell empty-cell" [attr.colspan]="logColumns.length">
+                  Nu exista date inca. Trimite email-uri de test!
+                </td>
+              </tr>
+            </table>
+          </mat-card-content>
+        </mat-card>
+      </div>
+    </mat-tab>
+
+    <!-- ============ TAB 2: QUARANTINE ============ -->
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <mat-icon class="tab-icon" [matBadge]="stats().pending_review || null" matBadgeColor="warn" matBadgeSize="small">
+          shield
+        </mat-icon>
+        Carantina
+      </ng-template>
+
+      <div class="page-content">
+        <!-- Filter -->
+        <mat-card appearance="outlined" class="section-card">
+          <mat-card-content class="filter-row">
+            <mat-form-field appearance="outline">
+              <mat-label>Status</mat-label>
+              <mat-select [ngModel]="quarantineFilter()" (ngModelChange)="quarantineFilter.set($event)">
+                <mat-option value="pending">De revizuit</mat-option>
+                <mat-option value="released">Eliberate</mat-option>
+                <mat-option value="deleted">Sterse</mat-option>
+                <mat-option value="">Toate</mat-option>
+              </mat-select>
+            </mat-form-field>
+            <button mat-icon-button matTooltip="Reincarca" (click)="quarantineResource.reload()">
+              <mat-icon>refresh</mat-icon>
+            </button>
+          </mat-card-content>
+        </mat-card>
+
+        <!-- Quarantine table -->
+        <mat-card appearance="outlined" class="section-card">
+          <mat-card-header>
+            <mat-icon mat-card-avatar color="warn">shield</mat-icon>
+            <mat-card-title>Mesaje in carantina ({{ quarantine().length }})</mat-card-title>
+          </mat-card-header>
+
+          <mat-card-content>
+            @for (msg of quarantine(); track msg.id) {
+              <mat-expansion-panel [expanded]="expandedQId() === msg.id" (opened)="toggleDetail(msg.id)">
+                <mat-expansion-panel-header>
+                  <mat-panel-title>
+                    <mat-chip-set class="inline-chips">
+                      <mat-chip [color]="scoreColor(msg.score)" highlighted>
+                        {{ msg.score.toFixed(2) }}
+                      </mat-chip>
+                    </mat-chip-set>
+                    <mat-icon [class]="'verdict-' + msg.verdict.toLowerCase()">{{ verdictIcon(msg.verdict) }}</mat-icon>
+                    <span class="q-sender">{{ msg.sender }}</span>
+                  </mat-panel-title>
+                  <mat-panel-description>
+                    <span class="q-subject truncate">{{ msg.subject }}</span>
+                    <span class="q-date">{{ msg.received_at | date:'dd.MM HH:mm' }}</span>
+                  </mat-panel-description>
+                </mat-expansion-panel-header>
+
+                <!-- Expanded detail -->
+                <div class="q-detail">
+                  <div class="q-scores">
+                    <div class="score-item">
+                      <span class="score-label">Scor final:</span>
+                      <span class="score-val">{{ msg.score.toFixed(2) }}</span>
+                    </div>
+                    <mat-divider [vertical]="true"></mat-divider>
+                    <div class="score-item">
+                      <span class="score-label">SpamAssassin:</span>
+                      <span class="score-val">{{ formatScore(msg.sa_score) }}</span>
+                    </div>
+                    <mat-divider [vertical]="true"></mat-divider>
+                    <div class="score-item">
+                      <span class="score-label">LLM:</span>
+                      <span class="score-val">{{ formatScore(msg.llm_score) }}</span>
+                    </div>
+                    <mat-divider [vertical]="true"></mat-divider>
+                    <div class="score-item">
+                      <span class="score-label">Auth (DKIM+SPF):</span>
+                      <span class="score-val">{{ formatScore(msg.auth_score) }}</span>
+                    </div>
+                    @if (msg.clamav_virus) {
+                      <mat-divider [vertical]="true"></mat-divider>
+                      <div class="score-item virus">
+                        <span class="score-label">Virus:</span>
+                        <span class="score-val">{{ msg.clamav_virus }}</span>
+                      </div>
+                    }
+                    @if (msg.adversarial) {
+                      <mat-divider [vertical]="true"></mat-divider>
+                      <div class="score-item virus">
+                        <span class="score-label">Prompt injection!</span>
+                      </div>
+                    }
+                  </div>
+
+                  @if (msg.reasons && msg.reasons.length) {
+                    <div class="q-reasons">
+                      <strong>Motive:</strong>
+                      <ul>
+                        @for (r of msg.reasons; track r) {
+                          <li>{{ r }}</li>
+                        }
+                      </ul>
+                    </div>
+                  }
+
+                  @if (msg.body_preview) {
+                    <div class="q-preview">
+                      <strong>Previzualizare:</strong>
+                      <pre>{{ msg.body_preview }}</pre>
+                    </div>
+                  }
+
+                  @if (msg.raw_headers) {
+                    <div class="q-headers">
+                      <strong>Headers:</strong>
+                      <pre>{{ msg.raw_headers }}</pre>
+                    </div>
+                  }
+
+                  @if (msg.status === 'pending') {
+                    <div class="q-actions">
+                      <button mat-flat-button color="primary" (click)="releaseMessage(msg.id)">
+                        <mat-icon>check</mat-icon> Elibereaza
+                      </button>
+                      <button mat-flat-button color="warn" (click)="deleteMessage(msg.id)">
+                        <mat-icon>delete</mat-icon> Sterge
+                      </button>
+                    </div>
+                  } @else {
+                    <div class="q-reviewed">
+                      Status: <strong>{{ msg.status }}</strong>
+                      @if (msg.reviewed_by) {
+                        — de {{ msg.reviewed_by }} la {{ msg.reviewed_at | date:'dd.MM.yyyy HH:mm' }}
+                      }
+                    </div>
+                  }
+                </div>
+              </mat-expansion-panel>
+            } @empty {
+              <div class="empty-cell">Nu exista mesaje in carantina.</div>
+            }
+          </mat-card-content>
+        </mat-card>
+      </div>
+    </mat-tab>
+
+    <!-- ============ TAB 3: USERS ============ -->
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <mat-icon class="tab-icon">group</mat-icon>
+        Conturi
+      </ng-template>
+
+      <div class="page-content">
+        <!-- Add user -->
+        <mat-card appearance="outlined" class="section-card">
+          <mat-card-header>
+            <mat-icon mat-card-avatar color="primary">person_add</mat-icon>
+            <mat-card-title>Cont nou</mat-card-title>
+          </mat-card-header>
+
+          <mat-card-content>
+            <form #createForm="ngForm" (ngSubmit)="createUser(createForm)" class="row-form">
+              <mat-form-field appearance="outline">
+                <mat-label>Adresa e-mail</mat-label>
+                <input matInput type="email" name="email"
+                       [ngModel]="newEmail()" (ngModelChange)="newEmail.set($event)"
+                       placeholder="utilizator@igsu.local" required />
+                <mat-icon matSuffix>alternate_email</mat-icon>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Parola</mat-label>
+                <input matInput type="password" name="password"
+                       [ngModel]="newPassword()" (ngModelChange)="newPassword.set($event)"
+                       required minlength="8" />
+                <mat-icon matSuffix>lock</mat-icon>
+              </mat-form-field>
+
+              <button mat-flat-button color="primary" type="submit" [disabled]="createForm.invalid">
+                <mat-icon>add</mat-icon> Adauga
+              </button>
+            </form>
+          </mat-card-content>
+        </mat-card>
+
+        <!-- Users table -->
+        <mat-card appearance="outlined" class="section-card">
+          <mat-card-header>
+            <mat-icon mat-card-avatar>group</mat-icon>
+            <mat-card-title>Conturi existente ({{ users().length }})</mat-card-title>
+          </mat-card-header>
+
+          <mat-card-content>
+            <table mat-table [dataSource]="users()" class="full-w">
+              <ng-container matColumnDef="email">
+                <th mat-header-cell *matHeaderCellDef>E-mail</th>
+                <td mat-cell *matCellDef="let u">{{ u.email }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="domain">
+                <th mat-header-cell *matHeaderCellDef>Domeniu</th>
+                <td mat-cell *matCellDef="let u">{{ u.domain }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="active">
+                <th mat-header-cell *matHeaderCellDef>Status</th>
+                <td mat-cell *matCellDef="let u">
+                  <mat-chip-set>
+                    <mat-chip [color]="u.active ? 'primary' : 'warn'" highlighted>
+                      {{ u.active ? 'activ' : 'inactiv' }}
+                    </mat-chip>
+                  </mat-chip-set>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="created_at">
+                <th mat-header-cell *matHeaderCellDef>Creat</th>
+                <td mat-cell *matCellDef="let u">{{ u.created_at | date:'dd.MM.yyyy HH:mm' }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="actions">
+                <th mat-header-cell *matHeaderCellDef>Actiuni</th>
+                <td mat-cell *matCellDef="let u">
+                  <button mat-icon-button color="accent"
+                          matTooltip="Schimba parola"
+                          (click)="startEdit(u.email)">
+                    <mat-icon>password</mat-icon>
+                  </button>
+                  <button mat-icon-button color="warn"
+                          matTooltip="Sterge contul"
+                          (click)="confirmDelete(u.email)">
+                    <mat-icon>delete</mat-icon>
+                  </button>
+                </td>
+              </ng-container>
+
+              <tr mat-header-row *matHeaderRowDef="userColumns"></tr>
+              <tr mat-row *matRowDef="let row; columns: userColumns;"></tr>
+
+              <tr class="mat-row" *matNoDataRow>
+                <td class="mat-cell empty-cell" [attr.colspan]="userColumns.length">
+                  Nu exista conturi inregistrate.
+                </td>
+              </tr>
+            </table>
+          </mat-card-content>
+        </mat-card>
+
+        <!-- Inline password change -->
+        @if (editEmail()) {
+          <mat-card appearance="outlined" class="section-card edit-card">
+            <mat-card-header>
+              <mat-icon mat-card-avatar color="accent">edit</mat-icon>
+              <mat-card-title>Schimba parola — {{ editEmail() }}</mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+              <div class="row-form">
+                <mat-form-field appearance="outline">
+                  <mat-label>Parola noua</mat-label>
+                  <input matInput type="password"
+                         [ngModel]="editPw()" (ngModelChange)="editPw.set($event)" />
+                  <mat-icon matSuffix>lock_reset</mat-icon>
+                </mat-form-field>
+                <button mat-flat-button color="accent" (click)="savePassword()">
+                  <mat-icon>save</mat-icon> Salveaza
+                </button>
+                <button mat-stroked-button (click)="cancelEdit()">Anuleaza</button>
+              </div>
+            </mat-card-content>
+          </mat-card>
+        }
+      </div>
+    </mat-tab>
+
+  </mat-tab-group>
+}
