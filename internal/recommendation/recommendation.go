@@ -135,7 +135,7 @@ func Build(dkim []email.DKIMResult, spf email.SPFResult, domain email.DomainChec
 	// Decision thresholds
 	if finalScore >= 0.6 {
 		sc.Status = "SPAM"
-	} else if finalScore >= 0.3 {
+	} else if finalScore >= 0.35 {
 		sc.Status = "QUARANTINE"
 	} else {
 		sc.Status = "CLEAN"

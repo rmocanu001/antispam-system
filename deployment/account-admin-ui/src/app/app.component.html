@@ -105,59 +105,65 @@
           </mat-card-header>
 
           <mat-card-content>
-            <table mat-table [dataSource]="stats().recent" class="full-w">
-              <ng-container matColumnDef="score">
-                <th mat-header-cell *matHeaderCellDef>Scor</th>
-                <td mat-cell *matCellDef="let e">
-                  <mat-chip-set>
-                    <mat-chip [color]="scoreColor(e.score)" highlighted>
-                      {{ e.score.toFixed(2) }}
-                    </mat-chip>
-                  </mat-chip-set>
-                </td>
-              </ng-container>
+            @for (e of stats().recent; track e.id) {
+              <mat-expansion-panel [expanded]="expandedLogId() === e.id" (opened)="toggleLog(e.id)">
+                <mat-expansion-panel-header>
+                  <mat-panel-title>
+                    <mat-chip-set class="inline-chips">
+                      <mat-chip [color]="scoreColor(e.score)" highlighted>{{ e.score.toFixed(2) }}</mat-chip>
+                    </mat-chip-set>
+                    <mat-icon [class]="'verdict-' + e.verdict.toLowerCase()">{{ verdictIcon(e.verdict) }}</mat-icon>
+                    <span class="q-sender">{{ e.sender }}</span>
+                  </mat-panel-title>
+                  <mat-panel-description>
+                    <span class="q-subject truncate">{{ e.subject }}</span>
+                    <span class="q-date">{{ e.scored_at | date:'dd.MM HH:mm' }}</span>
+                  </mat-panel-description>
+                </mat-expansion-panel-header>
 
-              <ng-container matColumnDef="verdict">
-                <th mat-header-cell *matHeaderCellDef>Verdict</th>
-                <td mat-cell *matCellDef="let e">
-                  <mat-icon [class]="'verdict-' + e.verdict.toLowerCase()">{{ verdictIcon(e.verdict) }}</mat-icon>
-                  {{ e.verdict }}
-                </td>
-              </ng-container>
+                <div class="q-detail">
+                  <div class="q-scores">
+                    <div class="score-item">
+                      <span class="score-label">Scor final:</span>
+                      <span class="score-val">{{ e.score.toFixed(2) }}</span>
+                    </div>
+                    <mat-divider [vertical]="true"></mat-divider>
+                    <div class="score-item">
+                      <span class="score-label">SpamAssassin:</span>
+                      <span class="score-val">{{ formatScore(e.sa_score) }}</span>
+                    </div>
+                    <mat-divider [vertical]="true"></mat-divider>
+                    <div class="score-item">
+                      <span class="score-label">LLM:</span>
+                      <span class="score-val">{{ formatScore(e.llm_score) }}</span>
+                    </div>
+                    <mat-divider [vertical]="true"></mat-divider>
+                    <div class="score-item">
+                      <span class="score-label">Auth (DKIM+SPF):</span>
+                      <span class="score-val">{{ formatScore(e.auth_score) }}</span>
+                    </div>
+                    <mat-divider [vertical]="true"></mat-divider>
+                    <div class="score-item">
+                      <span class="score-label">Actiune:</span>
+                      <span class="score-val">{{ e.action_taken }}</span>
+                    </div>
+                  </div>
 
-              <ng-container matColumnDef="sender">
-                <th mat-header-cell *matHeaderCellDef>Expeditor</th>
-                <td mat-cell *matCellDef="let e">{{ e.sender }}</td>
-              </ng-container>
-
-              <ng-container matColumnDef="subject">
-                <th mat-header-cell *matHeaderCellDef>Subiect</th>
-                <td mat-cell *matCellDef="let e" class="truncate">{{ e.subject }}</td>
-              </ng-container>
-
-              <ng-container matColumnDef="scored_at">
-                <th mat-header-cell *matHeaderCellDef>Data</th>
-                <td mat-cell *matCellDef="let e">{{ e.scored_at | date:'dd.MM HH:mm' }}</td>
-              </ng-container>
-
-              <ng-container matColumnDef="action_taken">
-                <th mat-header-cell *matHeaderCellDef>Actiune</th>
-                <td mat-cell *matCellDef="let e">
-                  <mat-chip-set>
-                    <mat-chip>{{ e.action_taken }}</mat-chip>
-                  </mat-chip-set>
-                </td>
-              </ng-container>
-
-              <tr mat-header-row *matHeaderRowDef="logColumns"></tr>
-              <tr mat-row *matRowDef="let row; columns: logColumns;"></tr>
-
-              <tr class="mat-row" *matNoDataRow>
-                <td class="mat-cell empty-cell" [attr.colspan]="logColumns.length">
-                  Nu exista date inca. Trimite email-uri de test!
-                </td>
-              </tr>
-            </table>
+                  @if (e.reasons && e.reasons.length) {
+                    <div class="q-reasons">
+                      <strong>Motive:</strong>
+                      <ul>
+                        @for (r of e.reasons; track r) {
+                          <li>{{ r }}</li>
+                        }
+                      </ul>
+                    </div>
+                  }
+                </div>
+              </mat-expansion-panel>
+            } @empty {
+              <div class="empty-cell">Nu exista date inca. Trimite email-uri de test!</div>
+            }
           </mat-card-content>
         </mat-card>
       </div>
