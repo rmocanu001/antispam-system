@@ -129,7 +129,7 @@ export class AppComponent {
   loading = computed(() => this.usersResource.isLoading());
 
   // ---- quarantine resource ----
-  quarantineFilter = signal('pending');
+  quarantineFilter = signal('');
 
   quarantineResource = httpResource<QuarantineMessage[]>(() =>
     this.loggedIn()
@@ -172,6 +172,13 @@ export class AppComponent {
 
   // ---- expanded quarantine detail ----
   expandedQId = signal<number | null>(null);
+
+  // ---- expanded scoring log detail ----
+  expandedLogId = signal<number | null>(null);
+
+  toggleLog(id: number) {
+    this.expandedLogId.set(this.expandedLogId() === id ? null : id);
+  }
 
   // ---- private helpers ----
   private get headers() {

@@ -227,6 +227,7 @@ func listQuarantine(w http.ResponseWriter, r *http.Request) {
 	status := r.URL.Query().Get("status")
 	verdict := r.URL.Query().Get("verdict")
 	limitStr := r.URL.Query().Get("limit")
+	noBody := r.URL.Query().Get("no_body") == "1"
 	limit := 100
 	if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 500 {
 		limit = l
@@ -274,6 +275,9 @@ func listQuarantine(w http.ResponseWriter, r *http.Request) {
 			m.Reasons = json.RawMessage(reasons.String)
 		} else {
 			m.Reasons = json.RawMessage("[]")
+		}
+		if noBody {
+			m.BodyPreview = nil
 		}
 		messages = append(messages, m)
 	}
