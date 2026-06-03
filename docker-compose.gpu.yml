@@ -1,0 +1,28 @@
+# ============================================================
+# Override GPU pentru Ollama (Docker Desktop + NVIDIA / WSL2)
+# ============================================================
+#
+# Activează accelerarea GPU pentru inferența LLM. Folosește-l SUPRAPUS peste
+# docker-compose.yml (nu îl porni singur):
+#
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d ollama
+#   # sau întreaga stivă:
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
+#
+# Cerințe:
+#   - GPU NVIDIA + drivere recente pe Windows
+#   - Docker Desktop cu backend WSL2 și suport GPU activat (Settings → Resources → WSL)
+#
+# Dacă NU ai GPU NVIDIA, nu folosi acest fișier — Ollama rulează pe CPU din
+# docker-compose.yml normal (mai lent).
+# ============================================================
+
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

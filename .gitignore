@@ -1,0 +1,19 @@
+# Corpus de test generat (descărcat de scripts/Download-*Corpus.ps1)
+/testdata/corpus/
+
+# Rezultatele benchmark-ului de comparație (cmd/llmcompare)
+/results/
+
+# Documentație generată
+/docs/
+
+#Documentație_licenta
+/Documentatie_licenta/
+
+# Artefacte Go
+/*.exe
+*.test
+*.out
+
+# Mediu local
+.env

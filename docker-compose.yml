@@ -71,7 +71,9 @@ services:
     depends_on:
       ollama:
         condition: service_healthy
-    entrypoint: ["sh", "-c", "ollama pull qwen2.5:7b"]
+    # Trage toate modelele folosite la comparație (cmd/llmcompare).
+    # OLLAMA_MODELS poate fi suprascris în .env pentru altă listă (separator spațiu).
+    entrypoint: ["sh", "-c", "for m in ${OLLAMA_MODELS:-qwen2.5:7b llama3.1:8b mistral:7b}; do echo \"Pulling $$m\"; ollama pull $$m; done"]
     environment:
       - OLLAMA_HOST=http://ollama:11434
     restart: "no"
