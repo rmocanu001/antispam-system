@@ -214,11 +214,20 @@ func processEmail(sender, recipient string, raw []byte) string {
 
 	log.Printf("=== SCORING: from=%s to=%s subject=%q ===", sender, recipient, subject)
 
-	// 1. DKIM
-	dkimResults, _ := email.CheckDKIM(raw)
+	// 1. DKIM — trust Authentication-Results set by OpenDKIM milter.
+	// Re-verifying via DNS fails for igsu.local (no public TXT record).
+	dkimAuthStatus, spfAuthStatus := email.ParseAuthResults(em.Envelope)
+	dkimResults := email.DKIMResultsFromAuthHeader(dkimAuthStatus)
+	log.Printf("  DKIM(auth-results): %s", dkimAuthStatus)
 
-	// 2. SPF
-	spfResult, _ := email.CheckSPF(em.Envelope, cfg.SourceIP, cfg.HELODomain)
+	// 2. SPF — prefer Authentication-Results; fall back to Received-SPF header.
+	var spfResult email.SPFResult
+	if spfAuthStatus != "none" && spfAuthStatus != "" {
+		spfResult = email.SPFResultFromAuthHeader(spfAuthStatus)
+	} else {
+		spfResult, _ = email.CheckSPF(em.Envelope, cfg.SourceIP, cfg.HELODomain)
+	}
+	log.Printf("  SPF(auth-results): %s", spfResult.Status)
 
 	// 3. Domain blocklist
 	domainCheck := email.CheckDomainBlocklist(em.Envelope, cfg.Blocklist)

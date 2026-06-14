@@ -75,6 +75,21 @@ func CheckSPF(env *enmime.Envelope, sourceIP, heloDomain string) (SPFResult, err
 	return result, nil
 }
 
+// DKIMResultsFromAuthHeader converts a status string from Authentication-Results into DKIMResult slice.
+// Used by the content filter to trust OpenDKIM milter results instead of re-verifying via DNS
+// (DNS lookup for igsu.local DKIM TXT records fails in local Docker setups).
+func DKIMResultsFromAuthHeader(status string) []DKIMResult {
+	if status == "" || status == "none" {
+		return nil
+	}
+	return []DKIMResult{{Status: status}}
+}
+
+// SPFResultFromAuthHeader converts a status string from Authentication-Results into SPFResult.
+func SPFResultFromAuthHeader(status string) SPFResult {
+	return SPFResult{Status: status, Mechanism: "auth-results"}
+}
+
 // ParseAuthResults extracts DKIM and SPF results from the Authentication-Results header (RFC 7601).
 // This is used when the MTA (Postfix + OpenDKIM + policyd-spf) has already performed the checks.
 func ParseAuthResults(env *enmime.Envelope) (dkimStatus, spfStatus string) {

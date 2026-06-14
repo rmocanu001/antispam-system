@@ -81,6 +81,15 @@ func Build(dkim []email.DKIMResult, spf email.SPFResult, domain email.DomainChec
 		return sc
 	}
 
+	// Hard override: very negative SA score = SA whitelist rules matched (e.g. RCVD_IN_DNSWL_HI)
+	// Auth failures should not quarantine emails that SA considers extremely clean.
+	if saResult != nil && saResult.Score < -10.0 {
+		sc.Status = "CLEAN"
+		sc.DecisionScore = 0.0
+		sc.Reasons = append(sc.Reasons, fmt.Sprintf("SpamAssassin whitelist override (score: %.1f)", saResult.Score))
+		return sc
+	}
+
 	// --- Normalize scores to 0.0-1.0 ---
 
 	// Authentication score (1.0 = trusted, 0.0 = untrusted)
